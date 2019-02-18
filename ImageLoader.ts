@@ -1,12 +1,24 @@
 class ImageLoader<IdType> {
-    private readonly pendingImages: Array<PendingImage<IdType>>;
+    private readonly pendingImages: Array<Promise<LoadedImage<IdType>>>;
 
     public constructor() {
-        this.pendingImages = new Array<PendingImage<IdType>>();
+        this.pendingImages = [];
     }
 
     public addPendingImage(image: PendingImage<IdType>): void {
-        this.pendingImages.push(image);
+        let dimensions: Dimensions = image.getDimensions();
+        let imageElement: HTMLImageElement = new Image(
+            dimensions.getWidth(),
+            dimensions.getHeight()
+        );
+        this.pendingImages.push(
+            new Promise<LoadedImage<IdType>>(resolve => {
+                imageElement.addEventListener("load", () => {
+                    resolve(new LoadedImage(image.getId(), imageElement));
+                });
+            })
+        );
+        imageElement.src = image.getPath();
     }
 
     public addPendingImages(images: Array<PendingImage<IdType>>): void {
@@ -16,22 +28,6 @@ class ImageLoader<IdType> {
     }
 
     public async loadPendingImages(): Promise<Array<LoadedImage<IdType>>> {
-        let promisesArray: Array<Promise<LoadedImage<IdType>>>;
-        for (let image of this.pendingImages) {
-            let dimensions: Dimensions = image.getDimensions();
-            let imageElement: HTMLImageElement = new Image(
-                dimensions.getWidth(),
-                dimensions.getHeight()
-            );
-            promisesArray.push(
-                new Promise<LoadedImage<IdType>>(resolve => {
-                    imageElement.addEventListener("load", () => {
-                        resolve(new LoadedImage(image.getId(), imageElement));
-                    });
-                })
-            );
-            imageElement.src = image.getPath();
-        }
-        return Promise.all(promisesArray);
+        return Promise.all(this.pendingImages);
     }
 }
