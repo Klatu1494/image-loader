@@ -1,4 +1,4 @@
-class PendingImage<IdType> {
+class PendingImageData<IdType> {
     public constructor(
         private readonly id: IdType,
         private readonly path: string,

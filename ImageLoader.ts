@@ -1,33 +1,45 @@
 class ImageLoader<IdType> {
-    private readonly pendingImages: Array<Promise<LoadedImage<IdType>>>;
+    private readonly addedImages: Array<QuerablePromise<LoadedImage<IdType>>>;
 
     public constructor() {
-        this.pendingImages = [];
+        this.addedImages = [];
     }
 
-    public addPendingImage(image: PendingImage<IdType>): void {
+    public addPendingImage(image: PendingImageData<IdType>): void {
         let dimensions: Dimensions = image.getDimensions();
         let imageElement: HTMLImageElement = new Image(
             dimensions.getWidth(),
             dimensions.getHeight()
         );
-        this.pendingImages.push(
-            new Promise<LoadedImage<IdType>>(resolve => {
-                imageElement.addEventListener("load", () => {
-                    resolve(new LoadedImage(image.getId(), imageElement));
-                });
-            })
-        );
+        let promise: QuerablePromise<LoadedImage<IdType>> = new QuerablePromise<
+            LoadedImage<IdType>
+        >((resolve, reject) => {
+            imageElement.addEventListener("load", () => {
+                resolve(new LoadedImage(image.getId(), imageElement));
+            });
+            imageElement.addEventListener("error", () => {
+                reject("There was an error while loading the image.");
+            });
+        });
+        this.addedImages.push(promise);
         imageElement.src = image.getPath();
     }
 
-    public addPendingImages(images: Array<PendingImage<IdType>>): void {
+    public addPendingImages(images: Array<PendingImageData<IdType>>): void {
         for (let image of images) {
             this.addPendingImage(image);
         }
     }
 
     public async loadPendingImages(): Promise<Array<LoadedImage<IdType>>> {
-        return Promise.all(this.pendingImages);
+        return Promise.all(this.addedImages);
+    }
+
+    public getAmountOfReadyImages(): number {
+        return this.addedImages.filter(element => element.isResolved()).length;
+    }
+
+    public getAmountOfImages(): number {
+        return this.addedImages.length;
     }
 }
